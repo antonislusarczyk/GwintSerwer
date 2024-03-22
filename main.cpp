@@ -4,17 +4,31 @@
 #include <boost/asio.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
-#include <boost/function.hpp>
+#include <boost/algorithm/string.hpp>
+#include <boost/lexical_cast.hpp>
+
+#include <boost/algorithm/string/classification.hpp> // Include boost::for is_any_of
+#include <boost/algorithm/string/split.hpp> // Include for boost::split
 
 // https://www.boost.org/doc/libs/1_81_0/doc/html/boost_asio/tutorial/tutdaytime3.html
 
 using boost::asio::ip::tcp;
 
-std::string make_daytime_string()
-{
-  using namespace std; // For time_t, time and ctime;
-  time_t now = time(0);
-  return ctime(&now);
+// gracze maja nr 0 i 1
+std::vector<char> pola = {'.', '.', '.', '.', '.', '.', '.', '.', '.'};
+std::array<char, 2> symbole = {'X', 'O'};
+
+int nr_gracza_aktywnego = 0;
+
+enum class Odp { REMIS, OK_GRAMY_DALEJ, OK_WYGRALES, OK_PRZEGRALES, ZAJETE_POLE, ZLY_RUCH};
+
+Odp ruch(int nr_gracza, int nr_pola) {
+    if (nr_gracza != nr_gracza_aktywnego) return Odp::ZLY_RUCH;
+    if (pola[nr_pola] != '.') return Odp::ZAJETE_POLE;
+    pola[nr_pola] = symbole[nr_gracza];
+    // sprawdzanie czy remis, wygrana
+    nr_gracza_aktywnego = 1 - nr_gracza_aktywnego;
+    return Odp::OK_GRAMY_DALEJ;
 }
 
 class tcp_connection
@@ -43,9 +57,46 @@ class tcp_connection
 
         std::cout << "dostalem wiadomosc\n";
         std::string s( (std::istreambuf_iterator<char>(&buffer)), std::istreambuf_iterator<char>() );
-        std::cout << "tresc:" << s << "\n";
+        boost::algorithm::trim(s);
 
-        std::string odpowiedz = "czesc "+s+"!!!\n";
+        // na string s jest to co wyslal klient
+        std::vector<std::string> words;
+        boost::split(words, s, boost::is_any_of(" "), boost::token_compress_on);
+        auto komenda = words[0];
+
+        std::ostringstream ss;
+
+        if (komenda == "status") {
+            ss << nr_gracza_aktywnego;
+            for (auto ch : pola) ss << " " << ch;
+            ss << "\n";
+        }
+        else if (komenda == "ruch")
+        {
+            std::cout << "dostalem nr gracza:" << words[1] << ", nr pola:" << words[2] << "\n";
+            int nr_gracza = boost::lexical_cast<int>(words[1]);
+            int nr_pola = boost::lexical_cast<int>(words[2]);
+            auto odp = ruch(nr_gracza, nr_pola);
+            switch (odp) {
+                case Odp::ZLY_RUCH:
+                    ss << "zlyruch";
+                    break;
+                case Odp::ZAJETE_POLE:
+                    ss << "zajete";
+                    break;
+                case Odp::OK_GRAMY_DALEJ:
+                    ss << "ok";
+                    break;
+                default:
+                    ss << "nie-zakodowane";
+                    break;
+            }
+        }
+        //std::cout << "tresc:" << words[0] << "\n";
+
+        std::string odpowiedz = ss.str();
+        // do tego miejsca przyszykuj odpowiedz
+
         boost::asio::async_write(socket_, boost::asio::buffer(odpowiedz),
                                  boost::bind(&tcp_connection::odpowiedz_wyslana, shared_from_this(),
                                              boost::asio::placeholders::error,
