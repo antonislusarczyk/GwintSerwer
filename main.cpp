@@ -34,12 +34,21 @@ public:
 
   void start()
   {
-       message_ = "tu Antek";
+       message_ = "                                      ";
        // message_ = make_daytime_string();
-       boost::asio::async_write(socket_, boost::asio::buffer(message_),
-         boost::bind(&tcp_connection::handle_write, shared_from_this(),
-          boost::asio::placeholders::error,
-          boost::asio::placeholders::bytes_transferred));
+
+       std::cout << "mam polaczenie, bede czytac...\n";
+
+      auto handler = boost::bind(&tcp_connection::czy_nowa_czy_stara, shared_from_this(),
+                  boost::asio::placeholders::error);
+
+// https://github.com/ygpark/hanb-boost-asio-sample/blob/master/async_read_until/async_read_until.cpp
+      boost::asio::async_read_until(socket_, buffer, '\n', handler);
+
+       //boost::asio::async_write(socket_, boost::asio::buffer(message_),
+       //  boost::bind(&tcp_connection::handle_write, shared_from_this(),
+       //   boost::asio::placeholders::error,
+       //   boost::asio::placeholders::bytes_transferred));
 
   }
   private:
@@ -53,8 +62,16 @@ public:
   {
   }
 
+  void czy_nowa_czy_stara(const boost::system::error_code& /*error*/)
+  {
+      std::string s( (std::istreambuf_iterator<char>(&buffer)), std::istreambuf_iterator<char>() );
+
+      std::cout << "dostalem \n" << s << "\n";
+  }
+
   tcp::socket socket_;
   std::string message_;
+  boost::asio::streambuf buffer;
 };
 
 
