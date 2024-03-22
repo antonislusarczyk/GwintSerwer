@@ -4,6 +4,7 @@
 #include <boost/asio.hpp>
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/bind.hpp>
+#include <boost/function.hpp>
 
 // https://www.boost.org/doc/libs/1_81_0/doc/html/boost_asio/tutorial/tutdaytime3.html
 
@@ -19,6 +20,39 @@ std::string make_daytime_string()
 class tcp_connection
   : public boost::enable_shared_from_this<tcp_connection>
 {
+    tcp::socket socket_;
+    boost::asio::streambuf buffer;
+
+    void odpowiedz_wyslana(const boost::system::error_code& error,
+                           size_t bytes_transferred) {
+
+        if (error) {
+            std::cout << "blad w wysylaniu odpowiedzi, " << error << "\n";
+            return;
+        }
+
+        std::cout << "wyslano odpowiedz, bajtow:" << bytes_transferred << "\n";
+    }
+
+    void zapytanie(const boost::system::error_code& error)
+    {
+        if (error) {
+            std::cout << "blad, " << error << "\n";
+            return;
+        }
+
+        std::cout << "dostalem wiadomosc\n";
+        std::string s( (std::istreambuf_iterator<char>(&buffer)), std::istreambuf_iterator<char>() );
+        std::cout << "tresc:" << s << "\n";
+
+        std::string odpowiedz = "czesc "+s+"!!!\n";
+        boost::asio::async_write(socket_, boost::asio::buffer(odpowiedz),
+                                 boost::bind(&tcp_connection::odpowiedz_wyslana, shared_from_this(),
+                                             boost::asio::placeholders::error,
+                                             boost::asio::placeholders::bytes_transferred));
+
+    }
+
 public:
   typedef boost::shared_ptr<tcp_connection> pointer;
 
@@ -34,44 +68,22 @@ public:
 
   void start()
   {
-       message_ = "                                      ";
+       //message_ = "                                      ";
        // message_ = make_daytime_string();
 
        std::cout << "mam polaczenie, bede czytac...\n";
 
-      auto handler = boost::bind(&tcp_connection::czy_nowa_czy_stara, shared_from_this(),
+      auto handler = boost::bind(&tcp_connection::zapytanie, shared_from_this(),
                   boost::asio::placeholders::error);
 
 // https://github.com/ygpark/hanb-boost-asio-sample/blob/master/async_read_until/async_read_until.cpp
       boost::asio::async_read_until(socket_, buffer, '\n', handler);
-
-       //boost::asio::async_write(socket_, boost::asio::buffer(message_),
-       //  boost::bind(&tcp_connection::handle_write, shared_from_this(),
-       //   boost::asio::placeholders::error,
-       //   boost::asio::placeholders::bytes_transferred));
-
   }
   private:
   tcp_connection(boost::asio::io_context& io_context)
     : socket_(io_context)
   {
   }
-
-  void handle_write(const boost::system::error_code& /*error*/,
-      size_t /*bytes_transferred*/)
-  {
-  }
-
-  void czy_nowa_czy_stara(const boost::system::error_code& /*error*/)
-  {
-      std::string s( (std::istreambuf_iterator<char>(&buffer)), std::istreambuf_iterator<char>() );
-
-      std::cout << "dostalem \n" << s << "\n";
-  }
-
-  tcp::socket socket_;
-  std::string message_;
-  boost::asio::streambuf buffer;
 };
 
 
