@@ -33,8 +33,14 @@ void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
 
         odp.put<int>("active_player", nr_gracza_aktywnego);
 
-        //for (auto ch: pola) ss << " " << ch;
-        //ss << "\n";
+        Wiadomosc tablica;
+        for (auto ch: pola) {
+            Wiadomosc el;
+            el.put("", ch);
+            tablica.push_back(std::make_pair("", el));
+        }
+        odp.add_child("board", tablica);
+
     } else if (komenda == "ruch") {
         //std::cout << "dostalem nr gracza:" << words[1] << ", nr pola:" << words[2] << "\n";
         int nr_gracza = wd.get<int>("player_num");
