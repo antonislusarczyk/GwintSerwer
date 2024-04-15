@@ -61,6 +61,7 @@ class tcp_connection
         }
         catch (boost::property_tree::ptree_error const & exc)
         {
+            std::cout << "niepoprawny json, zwracam blad\n";
             boost::property_tree::ptree err_answer;
             err_answer.put("error", exc.what());
             buffer.consume(bytes_transferred);
@@ -75,9 +76,11 @@ class tcp_connection
 
         try {
             gwint::ruch(wiadomosc, odsylacz);
+            std::cout << "ruch sie udal\n";
         }
         catch (boost::property_tree::ptree_error const & exc)
         {
+            std::cout << "ruch rzucil wyjatek\n";
             boost::property_tree::ptree err_answer;
             err_answer.put("error", exc.what());
             odeslij_odpowiedz(err_answer);
