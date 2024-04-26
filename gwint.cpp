@@ -22,27 +22,41 @@ public:
         znak=przyjetyZnak;
     }
 };
+class pojedynczePole {
+public:
+    bool czyJestAs;
+    int karta;
+    std::vector<int> dwojki;
+};
 std::vector<zmienneKarty> daneKart;
 std::vector<int> kupkaDobierania;
 std::vector<int> zuzyte;
 std::vector<int> wypadniete;
+bool czyGraWystartowala=0;
 class daneGracza {
 public:
     std::vector<int> talia;
-    std::vector<int> pole;
-    std::vector<int> asy;
-    std::vector<int> kartyNaAsach;
-    std::vector<int> podwojoneKarty;
-    int liczba_pol_na_karty;
-    daneGracza(){
+    std::vector<pojedynczePole> pole;
 
+
+    int liczba_pol_na_karty;
+    int liczba_polozonych_kart;
+    daneGracza(){
+        pole.reserve(12);
+        pojedynczePole puste;
+        puste.karta=0;
+        puste.dwojki=std::vector<int>(0, 0);
+        puste.czyJestAs=0;
+        for(int d=1;d<=10;d++) {
+            pole[d]=puste;
+        }
     }
 };
 std::vector<daneGracza> daneGraczy;
 void stworzDaneKart() {
     std::cout<<"sdk1";
     daneKart.reserve(57);
-    daneKart[0]=zmienneKarty(0, 1, 5);
+    daneKart[0]=zmienneKarty(0, 1, 44);
     daneKart[ 1]=zmienneKarty( 1, 2, 1);
     daneKart[ 2]=zmienneKarty( 2, 2, 2);
     daneKart[ 3]=zmienneKarty( 3, 2, 3);
@@ -106,6 +120,8 @@ void stworzDaneGraczy() {
     //daneGraczy[1]=daneGracza();
     daneGraczy[0].liczba_pol_na_karty=4;
     daneGraczy[1].liczba_pol_na_karty=4;
+    daneGraczy[0].liczba_polozonych_kart=0;
+    daneGraczy[1].liczba_polozonych_kart=0;
     std::cout<<"sdg2";
 }
 void przetasujKupkeDobierania() {
@@ -157,7 +173,7 @@ bool czygraczamakarteb(int a, int b) {
     return 0;
 }
 bool czygraczamamiejscenakarty(int a) {
-    if(daneGraczy[a].liczba_pol_na_karty>daneGraczy[a].pole.size()) {
+    if(daneGraczy[a].liczba_pol_na_karty>daneGraczy[a].liczba_polozonych_kart) {
         return 1;
     }
     return 0;
@@ -177,11 +193,11 @@ bool czykartaapasujedob(int a, int b) {
 }
 bool czykartaapasujedopolagraczab(int a, int b) {
     
-    if(daneGraczy[b].pole.size()==0) {
+    if(daneGraczy[b].liczba_polozonych_kart==0) {
         return 1;
     }
     for(auto x : daneGraczy[b].pole) {
-        if(czykartaapasujedob(x, a)) {
+        if(czykartaapasujedob(x.karta, a)) {
             return 1;
         }
     }
@@ -200,6 +216,8 @@ void usunkartez(std::vector<int> &v, int nr_karty) {
     }
     if(!cu)std::cout<<"NIU USUNALEM ZADNEJ KARTY :OOOOOOOOOOO\n";
 }
+
+OdsylaczOdpowiedzi odsylacz_ktory_czeka;
 
 void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
 {
@@ -231,16 +249,22 @@ void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
         odp.add_child("talia_gracza", talia_gracza);
     }
     else if(komenda == "start") {
-        stworzDaneKart();
-        stworzDaneGraczy();
-        stworzKupkeDobierania();
-        odp.put<std::string>("odpowiedz", "wystartowalo");
+        if(!czyGraWystartowala) {
+            stworzDaneKart();
+            stworzDaneGraczy();
+            stworzKupkeDobierania();
+            czyGraWystartowala=1;
+            odp.put<std::string>("odpowiedz", "wystartowalo");
+        }
+        else {
+            odp.put<std::string>("error", "gra_juz_wczesniej_wystartowala");
+        }
     }
     else if(komenda == "pole") {
         int nr_gracza = wd.get<int>("nr_gracza");
 
         for(auto karta : daneGraczy[nr_gracza].pole) {
-            odp.put("", karta);
+            odp.put("", karta.karta);
         }
     }
     /*
@@ -273,6 +297,7 @@ void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
     else if(komenda == "postaw_na_polu") {
         int nr_gracza = wd.get<int>("nr_gracza");
         int nr_karty = wd.get<int>("nr_karty");
+        int nr_pola = wd.get<int>("nr_pola");
         if(!czygraczamakarteb(nr_gracza, nr_karty)) {
             odp.put<std::string>("error", "gracz_nie_posiada_tej_karty");
 
@@ -283,9 +308,46 @@ void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
         else if(!czykartaapasujedopolagraczab(nr_karty, nr_gracza)) {
             odp.put<std::string>("error", "karta_nie_pasuje_do_pola");
         }
+        else if(daneGraczy[nr_gracza].pole[nr_pola].karta!=0) {
+            odp.put<std::string>("error", "na_polu_jest_inna_karta");
+        }
         else {
-            daneGraczy[nr_gracza].pole.push_back(nr_karty);
+            if(nr_pola>=5&&nr_pola<=8) {
+                if(daneGraczy[nr_gracza].pole[nr_pola].czyJestAs==0) {
+                    odp.put<std::string>("error", "nie_ma_tam_asa");
+                }
+                else {
+                    daneGraczy[nr_gracza].pole[nr_pola].karta=nr_karty;
+                }
+            }
+            else if(nr_pola>=1&&nr_pola<=4) {
+                daneGraczy[nr_gracza].pole[nr_pola].karta=nr_karty;
+            }
+            else {
+                odp.put<std::string>("error", "zly_numer_pola");
+            }
             usunkartez(daneGraczy[nr_gracza].talia, nr_karty);
+        }
+    }
+    else if (komenda == "czekaj") {
+        if (odsylacz_ktory_czeka) {
+            odp.put<std::string>("error", "juz-ktos-czeka");
+        }
+        else {
+            odsylacz_ktory_czeka = odsylacz;
+            return;
+        }
+    }
+    else if (komenda == "zwolnij-czekacza") {
+        if (odsylacz_ktory_czeka) {
+            Wiadomosc odp_dla_tego_co_czeka;
+            odp_dla_tego_co_czeka.put<std::string>("byl_ruch", "tutaj-opis-ruchu");
+            odsylacz_ktory_czeka(odp_dla_tego_co_czeka);
+            odsylacz_ktory_czeka = OdsylaczOdpowiedzi();
+            odp.put("status", "sukces-ktos-czekal-i-go-obudzilismy");
+        }
+        else {
+            odp.put("status", "nikt-nie-czekal");
         }
     }
     else {
