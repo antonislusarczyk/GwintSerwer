@@ -57,6 +57,7 @@ public:
     bool czyGraWystartowala=0;
     OdsylaczOdpowiedzi odsylacz_ktory_czeka;
     std::string kod_ostatniego_ruchu; // do odesłania
+    int liczbaGraczy;
 };
 std::map<int, Gra> gry;
 
@@ -262,6 +263,7 @@ void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
         odp.add_child("talia_gracza", talia_gracza);
     }
     else if(komenda == "start") {
+        //zaczynanie gry przez goscia, bedzie mial numer 0 w danegraczy
         int id_gry=wd.get<int>("id_gry");
         std::cout << "gra " << id_gry << " ------------\n";
         if(!gry.count(id_gry)||!gry[id_gry].czyGraWystartowala) {
@@ -273,10 +275,46 @@ void ruch(Wiadomosc const & wd, OdsylaczOdpowiedzi const & odsylacz)
             stworzKupkeDobierania(gry[id_gry].kupkaDobierania);
             gry[id_gry].czyGraWystartowala=1;
             odp.put<std::string>("sukces", "wystartowalo");
+            gry[id_gry].liczbaGraczy=1;
         }
         else {
             std::cout << "juz wczesniej byla taka gra\n";
             odp.put<std::string>("error", "gra_juz_wczesniej_wystartowala");
+        }
+    }
+    else if(komenda=="dolacz") {
+        int id_gry=wd.get<int>("id_gry");
+        std::cout << "proba dolaczenia do gry " << id_gry << " ------------\n";
+        if(!gry.count(id_gry)) {
+            odp.put<std::string>("error", "zly_kod_gry");
+            std::cout << "zly kod gry\n";
+        }
+        else {
+            if(gry[id_gry].liczbaGraczy>1) {
+                std::cout << "gra juz ma 2 graczy\n";
+                odp.put<std::string>("error", "gra_ma_juz_2_graczy");
+            }
+            else if(gry[id_gry].liczbaGraczy==1) {
+                std::cout << "pomyslnie dolaczono\n";
+                gry[id_gry].liczbaGraczy++;
+                odp.put<std::string>("sukces", "dolaczono");
+            }
+            else {
+                std::cout << "WTF\n";
+                odp.put<std::string>("error", "gra_ma_0_graczy");
+            }
+        }
+    }
+    else if(komenda=="liczbagraczy") {
+        //odpowiada liczbą graczy w twojej grze
+        int id_gry=wd.get<int>("id_gry");
+
+        if(!gry.count(id_gry)) {
+            odp.put<std::string>("error", "zly_kod_gry");
+            std::cout << "zly kod gry\n";
+        }
+        else {
+            odp.put<int>("liczbagraczy", gry[id_gry].liczbaGraczy);
         }
     }
     else if(komenda == "pole") {
