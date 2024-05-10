@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <random>
 #include <bits/stdc++.h>
-
+//pamietaj o wylogowywaniu ;D
 namespace gwint
 {
 
