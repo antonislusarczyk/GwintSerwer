@@ -134,7 +134,8 @@ void stworzDaneGraczy(std::vector<daneGracza>& daneGraczyX) {
     //std::cout<<"sdg2";
 }
 void przetasujKupkeDobierania(std::vector<int>& kupkaDobieraniaX) {
-    auto rng = std::default_random_engine {};
+    unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+    std::default_random_engine rng(seed);
     std::shuffle(std::begin(kupkaDobieraniaX), std::end(kupkaDobieraniaX), rng);
 }
 
